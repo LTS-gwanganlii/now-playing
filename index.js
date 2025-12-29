@@ -139,13 +139,17 @@ function lerpColor(aHex, bHex, t) {
 
 // startMs -> KST 시각의 "하루 내 위치" -> 팔레트 보간
 function groupColorByStart(startMs) {
-  const kstMs = startMs + 9 * 60 * 60 * 1000;
+  const kstMs = startMs + 9 * 60 * 60 * 1000; // Korea has no DST
+  const dayMs = 24 * 60 * 60 * 1000;
+  const tDay = ((kstMs % dayMs) + dayMs) % dayMs; // 0..dayMs
 
-  const periodMs = 30 * 60 * 1000; // 30분 주기
-  const m = ((kstMs % periodMs) + periodMs) % periodMs; // 0..periodMs
+  const hourFloat = tDay / (60 * 60 * 1000); // 0..24
+  const i = Math.floor(hourFloat); // 0..23
+  const t = hourFloat - i; // 0..1
 
-  const hue = (m / periodMs) * 360; // 30분 동안 0..360
-  return `hsl(${hue} 95% 65%)`;
+  const a = HOUR_PALETTE[i];
+  const b = HOUR_PALETTE[i + 1]; // palette has 25 entries, last repeats first
+  return lerpColor(a, b, t);
 }
 
 function render(payload) {
@@ -257,10 +261,16 @@ function itemCard(x, badge, nowMs, neonColor = null) {
 
 function timelineRowReservation(x, badge, nowMs) {
   const row = document.createElement("div");
-  row.className = "row";
+  row.className = "row grouped";
 
   const color = groupColorByStart(x.startMs);
 
+  // 네온 테두리 적용 (예약 타임라인에도 동일하게)
+  row.style.borderColor = color;
+  row.style.borderWidth = "2px";
+  row.style.boxShadow = `0 0 0 1px ${color} inset, 0 0 18px ${color}55`;
+
+  // 이하 기존 그대로
   const t = document.createElement("div");
   t.className = "time";
   t.textContent = `${fmtTime(x.startMs)} ~ ${fmtTime(x.endMs)}`;
