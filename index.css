@@ -202,3 +202,6 @@ body {
   border-top: 1px solid var(--line);
   color: var(--muted);
 }
+.item.grouped {
+  background: rgba(255,255,255,0.02);
+}

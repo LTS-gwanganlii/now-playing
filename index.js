@@ -89,17 +89,76 @@ function badgeFor(item, nowMs) {
  * 가까운 시간대는 비슷한 색, 멀어질수록 다음 색으로 이동.
  */
 const HOUR_PALETTE = [
-  "#6aa9ff", "#5fb6ff", "#53c3ff", "#45d0ff",
-  "#38dcff", "#2ee6f0", "#32efdb", "#43f6c1",
-  "#5efaa4", "#7efc86", "#a1fb6a", "#c6f651",
-  "#e7ec46", "#ffd24b", "#ffb45a", "#ff966b",
-  "#ff7c7c", "#ff6b9a", "#ff63b8", "#e06bff",
-  "#b07bff", "#8d8cff", "#779bff", "#6aa9ff"
+  "#6aa9ff",
+  "#5fb6ff",
+  "#53c3ff",
+  "#45d0ff",
+  "#38dcff",
+  "#2ee6f0",
+  "#32efdb",
+  "#43f6c1",
+  "#5efaa4",
+  "#7efc86",
+  "#a1fb6a",
+  "#c6f651",
+  "#e7ec46",
+  "#ffd24b",
+  "#ffb45a",
+  "#ff966b",
+  "#ff7c7c",
+  "#ff6b9a",
+  "#ff63b8",
+  "#e06bff",
+  "#b07bff",
+  "#8d8cff",
+  "#779bff",
+  "#6aa9ff",
 ];
 
 function hexToRgb(hex) {
+  const x = hex.replace("#", "");
+  const n = parseInt(x, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function rgbToHex({ r, g, b }) {
+  const f = (v) => v.toString(16).padStart(2, "0");
+  return `#${f(r)}${f(g)}${f(b)}`;
+}
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+function lerpColor(aHex, bHex, t) {
+  const a = hexToRgb(aHex),
+    b = hexToRgb(bHex);
+  return rgbToHex({
+    r: Math.round(lerp(a.r, b.r, t)),
+    g: Math.round(lerp(a.g, b.g, t)),
+    b: Math.round(lerp(a.b, b.b, t)),
+  });
+}
+
+// startMs -> KST 시각의 "하루 내 위치" -> 팔레트 보간
+function groupColorByStart(startMs) {
+  const kstMs = startMs + 9 * 60 * 60 * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  const m = ((kstMs % dayMs) + dayMs) % dayMs; // 0..dayMs
+  const p = m / (60 * 60 * 1000); // 0..24 (float)
+
+  const i = Math.floor(p) % 24;
+  const t = p - Math.floor(p); // 0..1
+  return lerpColor(HOUR_PALETTE[i], HOUR_PALETTE[(i + 1) % 24], t);
+}
+
+function hexToRgb(hex) {
   const h = hex.replace("#", "").trim();
-  const x = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const x =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
   const n = parseInt(x, 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
@@ -126,7 +185,11 @@ function lerpColor(aHex, bHex, t) {
 function groupColorByStart(startMs) {
   const d = new Date(startMs);
   const hh = Number(
-    d.toLocaleString("en-US", { hour: "2-digit", hour12: false, timeZone: "Asia/Seoul" })
+    d.toLocaleString("en-US", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Seoul",
+    })
   );
   const mm = Number(
     d.toLocaleString("en-US", { minute: "2-digit", timeZone: "Asia/Seoul" })
@@ -151,8 +214,11 @@ function render(payload) {
 
   // KPI 2: 방문 예정 고객 = 다음 예약의 people + 시작시간
   const nextVisit = pickNextVisit(reservations, nowMs);
-  els.kpiNextVisitPeople.textContent = nextVisit?.people != null ? `${nextVisit.people}명` : "-";
-  els.kpiNextVisitTime.textContent = nextVisit ? fmtTime(nextVisit.startMs) : "-";
+  els.kpiNextVisitPeople.textContent =
+    nextVisit?.people != null ? `${nextVisit.people}명` : "-";
+  els.kpiNextVisitTime.textContent = nextVisit
+    ? fmtTime(nextVisit.startMs)
+    : "-";
 
   // KPI 3: 다음 종료 = 진행 중(예약 제외) 중 가장 빠른 종료
   els.kpiNextEnd.textContent = nextEnd ? fmtTime(nextEnd) : "-";
@@ -165,29 +231,40 @@ function render(payload) {
   els.pillState.textContent = payload.refreshed ? "갱신됨" : "캐시";
 
   if (payload.fetchedAt) {
-    const freshness = ageMs != null ? `${Math.max(0, Math.floor(ageMs / 1000))}초 전` : "-";
-    els.metaLine.textContent = `데이터: ${freshness} 업데이트 · TTL ${Math.floor(ttlMs / 1000)}초`;
+    const freshness =
+      ageMs != null ? `${Math.max(0, Math.floor(ageMs / 1000))}초 전` : "-";
+    els.metaLine.textContent = `데이터: ${freshness} 업데이트 · TTL ${Math.floor(
+      ttlMs / 1000
+    )}초`;
   } else {
     els.metaLine.textContent = "-";
   }
 
   // 진행중(예약 제외)
-  els.activeHint.textContent = active.length ? `가장 빠른 종료: ${fmtTime(active[0].endMs)}` : "진행 중 없음";
-  els.activeList.innerHTML = active.length ? "" : `<div class="small">진행 중 이벤트가 없습니다.</div>`;
+  els.activeHint.textContent = active.length
+    ? `가장 빠른 종료: ${fmtTime(active[0].endMs)}`
+    : "진행 중 없음";
+  els.activeList.innerHTML = active.length
+    ? ""
+    : `<div class="small">진행 중 이벤트가 없습니다.</div>`;
 
   for (const x of active) {
     const left = minutesLeft(x.endMs, nowMs);
     const badge = { text: `${left}분 남음`, cls: "good" };
-    els.activeList.appendChild(itemCard(x, badge, nowMs));
+
+    const color = groupColorByStart(x.startMs);
+    els.activeList.appendChild(itemCard(x, badge, nowMs, color));
   }
 
   // 오늘 예약(예약만, 과거는 기본 숨김: endMs > now)
   const rows = reservations
     .slice()
     .sort((a, b) => a.startMs - b.startMs)
-    .filter((x) => x.endMs > nowMs);
+    .filter((x) => x.startMs > nowMs);
 
-  els.timeline.innerHTML = rows.length ? "" : `<div class="small">표시할 예약이 없습니다.</div>`;
+  els.timeline.innerHTML = rows.length
+    ? ""
+    : `<div class="small">표시할 예약이 없습니다.</div>`;
 
   for (const x of rows) {
     const b = badgeFor(x, nowMs);
@@ -195,9 +272,14 @@ function render(payload) {
   }
 }
 
-function itemCard(x, badge, nowMs) {
+function itemCard(x, badge, nowMs, neonColor = null) {
   const wrap = document.createElement("div");
-  wrap.className = "item";
+  wrap.className = neonColor ? "item grouped" : "item";
+
+  if (neonColor) {
+    wrap.style.borderColor = neonColor;
+    wrap.style.boxShadow = `0 0 0 1px ${neonColor} inset, 0 0 18px ${neonColor}33`;
+  }
 
   const top = document.createElement("div");
   top.className = "itemTop";
@@ -221,13 +303,12 @@ function itemCard(x, badge, nowMs) {
 
   wrap.appendChild(top);
   wrap.appendChild(line1);
-
   return wrap;
 }
 
 function timelineRowReservation(x, badge, nowMs) {
   const row = document.createElement("div");
-  row.className = "row grouped";
+  row.className = "row";
 
   const color = groupColorByStart(x.startMs);
   row.style.borderColor = color;
@@ -241,11 +322,14 @@ function timelineRowReservation(x, badge, nowMs) {
 
   const title = document.createElement("div");
   title.className = "itemTitle";
-  title.textContent = x.people != null ? `${x.people}명 방문 예정` : (x.title || "(no title)");
+  title.textContent =
+    x.people != null ? `${x.people}명 방문 예정` : x.title || "(no title)";
 
   const meta = document.createElement("div");
   meta.className = "itemMeta";
-  meta.textContent = [x.channel ? `via ${x.channel}` : ""].filter(Boolean).join(" · ");
+  meta.textContent = [x.channel ? `via ${x.channel}` : ""]
+    .filter(Boolean)
+    .join(" · ");
 
   mid.appendChild(title);
   mid.appendChild(meta);
