@@ -137,19 +137,23 @@ function lerpColor(aHex, bHex, t) {
   });
 }
 
-// startMs -> KST 시각의 "하루 내 위치" -> 팔레트 보간
+// 15분 슬롯마다 "확확" 바뀌게: 인접 슬롯도 색이 크게 다르게
 function groupColorByStart(startMs) {
-  const kstMs = startMs + 9 * 60 * 60 * 1000; // Korea has no DST
-  const dayMs = 24 * 60 * 60 * 1000;
-  const tDay = ((kstMs % dayMs) + dayMs) % dayMs; // 0..dayMs
+  const kstMs = startMs + 9 * 60 * 60 * 1000; // KST
+  const slotMs = 15 * 60 * 1000;
 
-  const hourFloat = tDay / (60 * 60 * 1000); // 0..24
-  const i = Math.floor(hourFloat); // 0..23
-  const t = hourFloat - i; // 0..1
+  // 0..95 (하루 96 슬롯)
+  const slot = Math.floor(
+    (((kstMs % (24 * 60 * 60 * 1000)) + 24 * 60 * 60 * 1000) %
+      (24 * 60 * 60 * 1000)) /
+      slotMs
+  );
 
-  const a = HOUR_PALETTE[i];
-  const b = HOUR_PALETTE[i + 1]; // palette has 25 entries, last repeats first
-  return lerpColor(a, b, t);
+  // 골든 앵글(약 137.508도)로 슬롯별 hue 분산
+  const hue = (slot * 137.508) % 360;
+
+  // 더 튀게 만들고 싶으면 lightness를 올리거나 sat를 100으로
+  return `hsl(${hue} 100% 65%)`;
 }
 
 function render(payload) {
