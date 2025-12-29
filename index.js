@@ -140,10 +140,11 @@ function lerpColor(aHex, bHex, t) {
 // startMs -> KST 시각의 "하루 내 위치" -> 팔레트 보간
 function groupColorByStart(startMs) {
   const kstMs = startMs + 9 * 60 * 60 * 1000;
-  const hourMs = 60 * 60 * 1000;
 
-  const m = ((kstMs % hourMs) + hourMs) % hourMs; // 0..1h
-  const hue = (m / hourMs) * 360; // 0..360 (한 시간에 한 바퀴)
+  const periodMs = 30 * 60 * 1000; // 30분 주기
+  const m = ((kstMs % periodMs) + periodMs) % periodMs; // 0..periodMs
+
+  const hue = (m / periodMs) * 360; // 30분 동안 0..360
   return `hsl(${hue} 95% 65%)`;
 }
 
