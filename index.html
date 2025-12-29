@@ -31,10 +31,15 @@
             <div class="k">진행 중</div>
             <div class="v" id="kpiActiveCount">-</div>
           </div>
+
           <div class="kpi">
-            <div class="k">게임 중 인원</div>
-            <div class="v" id="kpiActivePeople">-</div>
+            <div class="k">방문 예정 고객</div>
+            <div class="v vInline">
+              <span class="vMain" id="kpiNextVisitPeople">-</span>
+              <span class="vAside" id="kpiNextVisitTime">-</span>
+            </div>
           </div>
+
           <div class="kpi">
             <div class="k">다음 종료</div>
             <div class="v" id="kpiNextEnd">-</div>
@@ -54,18 +59,8 @@
 
       <section class="card span2">
         <div class="cardHead">
-          <div class="cardTitle">오늘 일정</div>
+          <div class="cardTitle">오늘 예약</div>
           <div class="small">시작 시간 기준</div>
-        </div>
-        <div class="toolbar">
-          <label class="toggle">
-            <input type="checkbox" id="chkHidePast" checked />
-            <span>지난 일정 숨기기</span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="chkOnlyRelevant" checked />
-            <span>GAME/대관/자유이용권만</span>
-          </label>
         </div>
         <div id="timeline" class="timeline"></div>
       </section>
@@ -80,9 +75,7 @@
     </main>
 
     <footer class="footer">
-      <div class="small">
-        이 페이지는 Worker 응답을 그대로 렌더링한다.
-      </div>
+      <div class="small">© 2026 4cozm all rights reserved</div>
     </footer>
 
     <script src="./index.js"></script>
