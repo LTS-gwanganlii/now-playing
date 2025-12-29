@@ -140,16 +140,12 @@ function lerpColor(aHex, bHex, t) {
 // startMs -> KST 시각의 "하루 내 위치" -> 팔레트 보간
 function groupColorByStart(startMs) {
   const kstMs = startMs + 9 * 60 * 60 * 1000;
-  const dayMs = 24 * 60 * 60 * 1000;
+  const hourMs = 60 * 60 * 1000;
 
-  const m = ((kstMs % dayMs) + dayMs) % dayMs; // 0..dayMs
-  const p = m / (60 * 60 * 1000); // 0..24 (float)
-
-  const i = Math.floor(p) % 24;
-  const t = p - Math.floor(p); // 0..1
-  return lerpColor(HOUR_PALETTE[i], HOUR_PALETTE[(i + 1) % 24], t);
+  const m = ((kstMs % hourMs) + hourMs) % hourMs; // 0..1h
+  const hue = (m / hourMs) * 360; // 0..360 (한 시간에 한 바퀴)
+  return `hsl(${hue} 95% 65%)`;
 }
-
 
 function render(payload) {
   lastPayload = payload;
