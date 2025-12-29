@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LTS Live</title>
+    <link rel="stylesheet" href="./index.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="title">LTS Live</div>
+        <div class="sub" id="subtitle">연결 중</div>
+      </div>
+
+      <div class="actions">
+        <button id="btnRefresh" class="btn">새로고침</button>
+        <button id="btnForce" class="btn btnPrimary">강제 최신화</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <div class="cardHead">
+          <div class="cardTitle">현재 상태</div>
+          <div class="pill" id="pillState">-</div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="k">진행 중</div>
+            <div class="v" id="kpiActiveCount">-</div>
+          </div>
+          <div class="kpi">
+            <div class="k">게임 중 인원</div>
+            <div class="v" id="kpiActivePeople">-</div>
+          </div>
+          <div class="kpi">
+            <div class="k">다음 종료</div>
+            <div class="v" id="kpiNextEnd">-</div>
+          </div>
+        </div>
+
+        <div class="small" id="metaLine">-</div>
+      </section>
+
+      <section class="card">
+        <div class="cardHead">
+          <div class="cardTitle">진행 중</div>
+          <div class="small" id="activeHint">-</div>
+        </div>
+        <div id="activeList" class="list"></div>
+      </section>
+
+      <section class="card span2">
+        <div class="cardHead">
+          <div class="cardTitle">오늘 일정</div>
+          <div class="small">시작 시간 기준</div>
+        </div>
+        <div class="toolbar">
+          <label class="toggle">
+            <input type="checkbox" id="chkHidePast" checked />
+            <span>지난 일정 숨기기</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="chkOnlyRelevant" checked />
+            <span>GAME/대관/자유이용권만</span>
+          </label>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+
+      <section class="card span2">
+        <div class="cardHead">
+          <div class="cardTitle">오류 로그</div>
+          <div class="small">최근 5개</div>
+        </div>
+        <pre id="errLog" class="log"></pre>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="small">
+        이 페이지는 Worker 응답을 그대로 렌더링한다.
+      </div>
+    </footer>
+
+    <script src="./index.js"></script>
+  </body>
+</html>
