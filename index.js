@@ -150,55 +150,6 @@ function groupColorByStart(startMs) {
   return lerpColor(HOUR_PALETTE[i], HOUR_PALETTE[(i + 1) % 24], t);
 }
 
-function hexToRgb(hex) {
-  const h = hex.replace("#", "").trim();
-  const x =
-    h.length === 3
-      ? h
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : h;
-  const n = parseInt(x, 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-
-function rgbToHex({ r, g, b }) {
-  const f = (v) => v.toString(16).padStart(2, "0");
-  return `#${f(r)}${f(g)}${f(b)}`;
-}
-
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
-function lerpColor(aHex, bHex, t) {
-  const a = hexToRgb(aHex);
-  const b = hexToRgb(bHex);
-  return rgbToHex({
-    r: Math.round(lerp(a.r, b.r, t)),
-    g: Math.round(lerp(a.g, b.g, t)),
-    b: Math.round(lerp(a.b, b.b, t)),
-  });
-}
-
-function groupColorByStart(startMs) {
-  const d = new Date(startMs);
-  const hh = Number(
-    d.toLocaleString("en-US", {
-      hour: "2-digit",
-      hour12: false,
-      timeZone: "Asia/Seoul",
-    })
-  );
-  const mm = Number(
-    d.toLocaleString("en-US", { minute: "2-digit", timeZone: "Asia/Seoul" })
-  );
-  const p = hh + mm / 60;
-  const i = Math.floor(p) % 24;
-  const t = p - Math.floor(p);
-  return lerpColor(HOUR_PALETTE[i], HOUR_PALETTE[(i + 1) % 24], t);
-}
 
 function render(payload) {
   lastPayload = payload;
@@ -278,7 +229,8 @@ function itemCard(x, badge, nowMs, neonColor = null) {
 
   if (neonColor) {
     wrap.style.borderColor = neonColor;
-    wrap.style.boxShadow = `0 0 0 1px ${neonColor} inset, 0 0 18px ${neonColor}33`;
+    wrap.style.borderWidth = "2px";
+    wrap.style.boxShadow = `0 0 0 1px ${neonColor} inset, 0 0 18px ${neonColor}55`;
   }
 
   const top = document.createElement("div");
@@ -311,8 +263,6 @@ function timelineRowReservation(x, badge, nowMs) {
   row.className = "row";
 
   const color = groupColorByStart(x.startMs);
-  row.style.borderColor = color;
-  row.style.boxShadow = `0 0 0 1px ${color} inset, 0 0 18px ${color}33`;
 
   const t = document.createElement("div");
   t.className = "time";
