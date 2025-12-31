@@ -300,3 +300,19 @@ body {
     display: inline;
   }
 }
+
+/* 매장 전화(a 링크) 버튼 스타일 리셋 */
+#btnForce,
+#btnForce:link,
+#btnForce:visited,
+#btnForce:hover,
+#btnForce:active,
+#btnForce:focus {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* 모바일에서 눌렀을 때 보라색/파란 하이라이트(특히 iOS) 방지 */
+#btnForce {
+  -webkit-tap-highlight-color: transparent;
+}

@@ -16,9 +16,11 @@
       <button id="btnRefresh" class="btn">
         <span class="tLong">새로고침</span><span class="tShort">새로</span>
       </button>
-      <button id="btnForce" class="btn btnPrimary">
-        <span class="tLong">강제 최신화</span><span class="tShort">강제</span>
-      </button>
+
+      <!-- ✅ 기존 "강제 최신화" 버튼: 고객에게 숨김 + 전화걸기로 용도 변경 -->
+      <a id="btnForce" class="btn btnPrimary" href="tel:051-758-1123">
+        <span class="tLong">매장 전화</span><span class="tShort">전화</span>
+      </a>
     </header>
 
     <main class="grid">
@@ -67,7 +69,7 @@
         <div id="timeline" class="timeline"></div>
       </section>
 
-      <section class="card span2">
+      <section class="card span2" id="errCard">
         <div class="cardHead">
           <div class="cardTitle">오류 로그</div>
           <div class="small">최근 5개</div>

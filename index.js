@@ -5,6 +5,9 @@
 const WORKER_URL = "https://lts.foalcozm2.workers.dev";
 const POLL_MS = 15000;
 
+// ✅ 같은 상품 + 시작시간 10분 이내면 묶기
+const GROUP_WINDOW_MS = 10 * 60 * 1000;
+
 const els = {
   subtitle: document.getElementById("subtitle"),
   pillState: document.getElementById("pillState"),
@@ -22,9 +25,9 @@ const els = {
   btnRefresh: document.getElementById("btnRefresh"),
   btnForce: document.getElementById("btnForce"),
 
+  errCard: document.getElementById("errCard"),
   errLog: document.getElementById("errLog"),
 };
-
 let lastPayload = null;
 let pollTimer = null;
 const errRing = [];
@@ -58,14 +61,88 @@ function isReservation(item) {
   return item && item.people != null && !!item.channel;
 }
 
-function computeActiveNonReservation(items, nowMs) {
-  const active = items
-    .filter((x) => !isReservation(x))
-    .filter((x) => x.startMs <= nowMs && nowMs < x.endMs)
-    .sort((a, b) => a.endMs - b.endMs);
+/**
+ * ✅ 그룹 키: "같은 상품"이 핵심.
+ * product가 없으면 type으로 fallback.
+ */
+function groupKeyForNonReservation(item) {
+  return item?.product ?? item?.type ?? "(unknown)";
+}
 
-  const nextEnd = active.length ? active[0].endMs : null;
-  return { active, nextEnd };
+/**
+ * ✅ 같은 상품(key) 내에서:
+ * - startMs 정렬
+ * - (그룹의 첫 startMs)와 10분 이내면 합침
+ * - 그룹 endMs는 max(endMs)로 고정 (가장 늦게 끝나는 것)
+ */
+function groupByProductAndTime(activeItems, windowMs = GROUP_WINDOW_MS) {
+  const buckets = new Map();
+  for (const it of activeItems) {
+    const key = groupKeyForNonReservation(it);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(it);
+  }
+
+  const groups = [];
+
+  for (const [key, arr] of buckets.entries()) {
+    arr.sort((a, b) => a.startMs - b.startMs);
+
+    let g = null;
+    for (const it of arr) {
+      if (!g) {
+        g = {
+          key,
+          count: 1,
+          startMs: it.startMs,
+          endMs: it.endMs,
+          type: it.type,
+          product: it.product,
+          games: it.games,
+          items: [it],
+        };
+        continue;
+      }
+
+      // 그룹의 "첫 시작시간" 기준 10분 이내면 같은 그룹
+      if (it.startMs - g.startMs <= windowMs) {
+        g.count += 1;
+        g.endMs = Math.max(g.endMs, it.endMs); // ✅ 느린 종료로 고정
+        // games는 의미가 애매해서 "존재하면 최대값"으로만 합침(원하면 합산으로 바꿔도 됨)
+        if (it.games != null) g.games = Math.max(g.games ?? 0, it.games);
+        g.items.push(it);
+      } else {
+        groups.push(g);
+        g = {
+          key,
+          count: 1,
+          startMs: it.startMs,
+          endMs: it.endMs,
+          type: it.type,
+          product: it.product,
+          games: it.games,
+          items: [it],
+        };
+      }
+    }
+    if (g) groups.push(g);
+  }
+
+  // 다음 종료 계산이 쉬우도록 endMs 오름차순
+  groups.sort((a, b) => a.endMs - b.endMs);
+  return groups;
+}
+
+function computeActiveNonReservation(items, nowMs) {
+  const activeItems = items
+    .filter((x) => !isReservation(x))
+    .filter((x) => x.startMs <= nowMs && nowMs < x.endMs);
+
+  const groups = groupByProductAndTime(activeItems, GROUP_WINDOW_MS);
+  const nextEnd = groups.length ? groups[0].endMs : null;
+
+  // KPI는 "진행 중 인원" = 아이템 수(그룹 수 아님)
+  return { groups, nextEnd, activeCount: activeItems.length };
 }
 
 function pickNextVisit(reservations, nowMs) {
@@ -163,10 +240,17 @@ function render(payload) {
   const items = Array.isArray(payload.items) ? payload.items : [];
 
   const reservations = items.filter(isReservation);
-  const { active, nextEnd } = computeActiveNonReservation(items, nowMs);
+
+  // ✅ 진행중(예약 제외) = "그룹"으로 표시
+  const {
+    groups: activeGroups,
+    nextEnd,
+    activeCount,
+  } = computeActiveNonReservation(items, nowMs);
 
   // KPI 1: 진행 중 = 스케줄 1개당 고객 1명, 뒤에 "명"
-  els.kpiActiveCount.textContent = `${active.length}명`;
+  // ✅ 그룹 수가 아니라 실제 진행중 아이템 수
+  els.kpiActiveCount.textContent = `${activeCount}명`;
 
   // KPI 2: 방문 예정 고객 = 다음 예약의 people + 시작시간
   const nextVisit = pickNextVisit(reservations, nowMs);
@@ -176,7 +260,7 @@ function render(payload) {
     ? fmtTime(nextVisit.startMs)
     : "-";
 
-  // KPI 3: 다음 종료 = 진행 중(예약 제외) 중 가장 빠른 종료
+  // KPI 3: 다음 종료 = 진행 중(예약 제외) 그룹 중 가장 빠른 종료(endMs가 가장 작은 그룹)
   els.kpiNextEnd.textContent = nextEnd ? fmtTime(nextEnd) : "-";
 
   // 상단 상태/메타
@@ -196,23 +280,22 @@ function render(payload) {
     els.metaLine.textContent = "-";
   }
 
-  // 진행중(예약 제외)
-  els.activeHint.textContent = active.length
-    ? `가장 빠른 종료: ${fmtTime(active[0].endMs)}`
+  // 진행중(예약 제외) - 그룹 카드
+  els.activeHint.textContent = activeGroups.length
+    ? `가장 빠른 종료: ${fmtTime(activeGroups[0].endMs)}`
     : "진행 중 없음";
-  els.activeList.innerHTML = active.length
+  els.activeList.innerHTML = activeGroups.length
     ? ""
     : `<div class="small">진행 중 이벤트가 없습니다.</div>`;
 
-  for (const x of active) {
-    const left = minutesLeft(x.endMs, nowMs);
+  for (const g of activeGroups) {
+    const left = minutesLeft(g.endMs, nowMs);
     const badge = { text: `${left}분 남음`, cls: "good" };
-
-    const color = groupColorByStart(x.startMs);
-    els.activeList.appendChild(itemCard(x, badge, nowMs, color));
+    const color = groupColorByStart(g.startMs);
+    els.activeList.appendChild(groupCard(g, badge, nowMs, color));
   }
 
-  // 오늘 예약(예약만, 과거는 기본 숨김: endMs > now)
+  // 오늘 예약(예약만, 과거는 기본 숨김: startMs > now)
   const rows = reservations
     .slice()
     .sort((a, b) => a.startMs - b.startMs)
@@ -228,7 +311,48 @@ function render(payload) {
   }
 }
 
+function groupCard(g, badge, nowMs, neonColor = null) {
+  const wrap = document.createElement("div");
+  wrap.className = neonColor ? "item grouped" : "item";
+
+  if (neonColor) {
+    wrap.style.borderColor = neonColor;
+    wrap.style.borderWidth = "2px";
+    wrap.style.boxShadow = `0 0 0 1px ${neonColor} inset, 0 0 18px ${neonColor}55`;
+  }
+
+  const top = document.createElement("div");
+  top.className = "itemTop";
+
+  const title = document.createElement("div");
+  title.className = "itemTitle";
+
+  // ✅ 핵심: 같은 상품 묶여서 "상품 N명"
+  const label = g.product ?? g.key ?? g.type ?? "(no product)";
+  title.textContent = `${label} ${g.count}명`;
+
+  const pill = document.createElement("div");
+  pill.className = `badge ${badge.cls || ""}`.trim();
+  pill.textContent = badge.text;
+
+  top.appendChild(title);
+  top.appendChild(pill);
+
+  const line1 = document.createElement("div");
+  line1.className = "itemMeta";
+
+  // ✅ endMs는 그룹 내 최대(endMs)로 고정된 값
+  line1.textContent = `${fmtTime(g.startMs)} ~ ${fmtTime(g.endMs)} · ${
+    g.type ?? "-"
+  }${g.product ? `/${g.product}` : ""}${g.games ? ` · ${g.games}게임` : ""}`;
+
+  wrap.appendChild(top);
+  wrap.appendChild(line1);
+  return wrap;
+}
+
 function itemCard(x, badge, nowMs, neonColor = null) {
+  // (남겨둠: 혹시 다른 곳에서 쓰는 경우 대비)
   const wrap = document.createElement("div");
   wrap.className = neonColor ? "item grouped" : "item";
 
@@ -274,7 +398,6 @@ function timelineRowReservation(x, badge, nowMs) {
   row.style.borderWidth = "2px";
   row.style.boxShadow = `0 0 0 1px ${color} inset, 0 0 18px ${color}55`;
 
-  // 이하 기존 그대로
   const t = document.createElement("div");
   t.className = "time";
   t.textContent = `${fmtTime(x.startMs)} ~ ${fmtTime(x.endMs)}`;
@@ -337,7 +460,9 @@ function startPoll() {
 }
 
 els.btnRefresh.addEventListener("click", () => refresh(false));
-els.btnForce.addEventListener("click", () => refresh(true));
+const forceRefreshFromErr = () => refresh(true);
+els.errCard?.addEventListener("click", forceRefreshFromErr);
+els.errLog?.addEventListener("click", forceRefreshFromErr);
 
 refresh(false);
 startPoll();
