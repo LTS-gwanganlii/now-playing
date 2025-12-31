@@ -250,7 +250,7 @@ function render(payload) {
 
   // KPI 1: 진행 중 = 스케줄 1개당 고객 1명, 뒤에 "명"
   // ✅ 그룹 수가 아니라 실제 진행중 아이템 수
-  els.kpiActiveCount.textContent = `${activeCount}명 /24명`;
+  els.kpiActiveCount.textContent = `${activeCount}명`;
 
   // KPI 2: 방문 예정 고객 = 다음 예약의 people + 시작시간
   const nextVisit = pickNextVisit(reservations, nowMs);

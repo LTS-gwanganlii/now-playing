@@ -71,6 +71,11 @@ body {
   padding: 10px 12px;
   border-radius: 10px;
   cursor: pointer;
+  font: inherit; /* ✅ button 기본 폰트 제거, body 폰트로 통일 */
+  line-height: 1; /* ✅ 높이 흔들림 방지 */
+  display: inline-flex; /* ✅ a/button 레이아웃 동일화 */
+  align-items: center;
+  justify-content: center;
 }
 .btn:hover {
   filter: brightness(1.08);
@@ -315,4 +320,8 @@ body {
 /* 모바일에서 눌렀을 때 보라색/파란 하이라이트(특히 iOS) 방지 */
 #btnForce {
   -webkit-tap-highlight-color: transparent;
+}
+button.btn {
+  appearance: none;
+  -webkit-appearance: none;
 }
